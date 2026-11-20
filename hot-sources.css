@@ -1,0 +1,4 @@
+/* 追加：热榜来源状态标签 */
+.hot-sources{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0 4px}
+.src-chip{background:#eef7f0;color:#1f7a4d;border:1px solid #cfe8da;border-radius:20px;padding:3px 10px;font-size:12px;white-space:nowrap}
+.src-chip.zero{background:#f7f7f8;color:#9aa1a9;border-color:#e6e8eb}

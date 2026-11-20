@@ -1,0 +1,10 @@
+/* 追加：热榜列表与配置相关样式 */
+.hot-list{background:#fff;border:1px solid var(--line);border-radius:12px;padding:8px 16px 16px}
+.hot-list h3{font-size:13px;color:var(--muted);margin:14px 0 4px;font-weight:600}
+.hot-row{display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px dashed #eef0f2;font-size:13px;cursor:pointer}
+.hot-row:hover{background:#fafbfc}
+.hot-row .ht{flex:1}
+.hot-row .hh{color:var(--muted);font-size:12px}
+.hot-row .hs{background:#eef2ff;color:var(--accent);border-radius:5px;padding:1px 6px;font-size:11px}
+label.inline{display:inline-flex;align-items:center;gap:6px;font-size:13px;color:var(--muted)}
+input.wide{flex:1;min-width:220px;padding:7px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;font-size:13px}

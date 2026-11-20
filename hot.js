@@ -230,6 +230,7 @@ async function tophub(source){
   return clean(items, source);
 }
 
+/* 小红书热搜：需要登录 cookie（.env 里配 XHS_COOKIE） */
 /* 小红书热搜：官方接口需登录态，改从聚合站抓同一份榜单 */
 async function xiaohongshu(){
   const items = await tophub('小红书');

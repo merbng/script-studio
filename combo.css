@@ -1,0 +1,7 @@
+/* 合并输入框 + 一键复制 + 发布物料聚焦自动复制 */
+.combo-head{display:flex;align-items:center;gap:10px;margin-bottom:6px}
+.combo-label{font-weight:600;flex:1;line-height:1.5}
+.combo-head button{flex:none}
+textarea.c-all{width:100%;min-height:340px;font-family:inherit;font-size:14px;line-height:1.75;resize:vertical}
+.m-desc.copied,.m-title.copied{outline:2px solid #2f9e44 !important;outline-offset:1px}
+.m-desc.copied::after,.m-title.copied::after{content:'已复制';display:block;font-size:11px;color:#2f9e44;margin-top:2px}

@@ -1,3 +1,8 @@
+/**
+ * 视频号脚本标准化生成器 · 后端
+ * 零依赖：Node 内置 http/https/fs/path/url
+ * 能力：实时热榜（10 平台合并 → 人设贴合度排序） → 大模型按人设选题 → 服务端校验 → 自动自修复 → 导出
+ */
 const http = require('http');
 const https = require('https');
 const fs = require('fs');
