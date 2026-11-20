@@ -313,8 +313,11 @@ const server = http.createServer(async (req, res) => {
     if (p === '/api/config' && req.method === 'POST'){
       const body = await readBody(req);
       setEnvVars({ base: body.base, model: body.model, key: body.key });
-      loadEnv();
-      return json(res, 200, { ok:true });
+      /* 立即生效：进程内覆盖（Render 上环境变量优先，故此处同步覆盖 process.env） */
+      if (body.base) process.env.LLM_BASE_URL = body.base;
+      if (body.key) process.env.LLM_API_KEY = body.key;
+      if (body.model) process.env.LLM_MODEL = body.model;
+      return json(res, 200, { ok:true, base: llmConfig().base, model: llmConfig().model, hasKey: !!llmConfig().key });
     }
     if (p === '/api/spec' && req.method === 'GET'){
       return json(res, 200, currentSpec() || { fixed: '', rules: currentRules() });
