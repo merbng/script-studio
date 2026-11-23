@@ -188,17 +188,38 @@ async function generate(){
   const extra = $('#gen-extra').value.trim();
   const btn = $('#btn-generate');
   btn.disabled = true; btn.textContent = '生成中…';
-  $('#hot-status').textContent = '模型按人设选题与成稿中（含自动校验修复），通常 40–90 秒…';
+
+  const GEN_TIMEOUT = 300000; // 单条最多 5 分钟
+  async function fetchWithTimeout(url, opts){
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), GEN_TIMEOUT);
+    try { return await fetch(url, Object.assign({}, opts, { signal: ctrl.signal })); }
+    finally { clearTimeout(t); }
+  }
+
   try {
-    const r = await fetch('/api/generate', {
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ count, extra, hotItems: items })
-    });
-    const j = await r.json();
-    if (!r.ok) throw new Error(j.error || '生成失败');
-    applyScripts(j.scripts);
+    $('#hot-status').textContent = '正在唤醒服务（冷启动）…';
+    try { await fetchWithTimeout('/api/health', {}); } catch(e){}
+
+    const out = [];
+    for (let i = 0; i < count; i++){
+      $('#hot-status').textContent = '正在生成第 ' + (i+1) + ' / ' + count + ' 条（含自动校验修复，单条约 40–90 秒）…';
+      try {
+        const r = await fetchWithTimeout('/api/generate', {
+          method:'POST', headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({ count: 1, extra, hotItems: items })
+        });
+        const j = await r.json();
+        if (!r.ok) throw new Error(j.error || '生成失败');
+        if (j.scripts && j.scripts.length) out.push.apply(out, j.scripts);
+      } catch(e){
+        $('#hot-status').textContent = '第 ' + (i+1) + ' 条生成失败: ' + e.message + '（继续下一条）';
+      }
+    }
+    if (!out.length) throw new Error('没有成功生成任何脚本');
+    applyScripts(out);
     await loadHistory();
-    $('#hot-status').textContent = '已生成 ' + j.scripts.length + ' 条脚本，已自动校验';
+    $('#hot-status').textContent = '已生成 ' + out.length + ' 条脚本，已自动校验';
     $$('.tab').forEach(x => x.classList.remove('active'));
     $$('.panel').forEach(x => x.classList.remove('active'));
     $('.tab[data-tab=gen]').classList.add('active');
@@ -209,7 +230,7 @@ async function generate(){
     btn.disabled = false; btn.textContent = '用选中热榜生成脚本';
   }
 }
-$('#btn-generate').onclick = generate;
+
 $('#btn-gen').onclick = async () => { if (!hotItems.length) await loadHot(); generate(); };
 
 function applyScripts(list){
