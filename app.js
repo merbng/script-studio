@@ -48,7 +48,6 @@ $$('.tab').forEach(t => t.onclick = () => {
   $$('.panel').forEach(x => x.classList.remove('active'));
   t.classList.add('active');
   $('#tab-' + t.dataset.tab).classList.add('active');
-  if (t.dataset.tab === 'out') renderPreview();
   if (t.dataset.tab === 'history') renderHistory();
 });
 
@@ -198,372 +197,108 @@ async function generate(){
   }
 
   try {
-    $('#hot-status').textContent = '正在唤醒服务（冷启动）…';
-    try { await fetchWithTimeout('/api/health', {}); } catch(e){}
-
-    const out = [];
-    for (let i = 0; i < count; i++){
-      $('#hot-status').textContent = '正在生成第 ' + (i+1) + ' / ' + count + ' 条（含自动校验修复，单条约 40–90 秒）…';
-      try {
-        const r = await fetchWithTimeout('/api/generate', {
-          method:'POST', headers:{'Content-Type':'application/json'},
-          body: JSON.stringify({ count: 1, extra, hotItems: items })
-        });
-        const j = await r.json();
-        if (!r.ok) throw new Error(j.error || '生成失败');
-        if (j.scripts && j.scripts.length) out.push.apply(out, j.scripts);
-      } catch(e){
-        $('#hot-status').textContent = '第 ' + (i+1) + ' 条生成失败: ' + e.message + '（继续下一条）';
-      }
+    const topics = items.map(it => it.title);
+    const data = await post('/api/generate', { topics, tone: '犀利科普', settings: spec, materials: true, count, extra });
+    if (data.cards){
+      cards = data.cards;
+      save(LS_CARDS, cards);
+      renderAll();
+      if (data.issues) serverIssues = data.issues;
     }
-    if (!out.length) throw new Error('没有成功生成任何脚本');
-    applyScripts(out);
-    await loadHistory();
-    $('#hot-status').textContent = '已生成 ' + out.length + ' 条脚本，已自动校验';
-    $$('.tab').forEach(x => x.classList.remove('active'));
-    $$('.panel').forEach(x => x.classList.remove('active'));
-    $('.tab[data-tab=gen]').classList.add('active');
-    $('#tab-gen').classList.add('active');
   } catch(e){
-    $('#hot-status').textContent = '生成失败: ' + e.message;
+    alert('生成失败: ' + e.message);
   } finally {
     btn.disabled = false; btn.textContent = '用选中热榜生成脚本';
   }
 }
-
-$('#btn-gen').onclick = async () => { if (!hotItems.length) await loadHot(); generate(); };
 $('#btn-generate').onclick = generate;
-
-function applyScripts(list){
-  $('#cards').innerHTML = '';
-  serverIssues = {};
-  (list || []).forEach(s => {
-    serverIssues[s.id] = (s.issues || []).map(i => ({ t: i.level, m: i.msg }));
-    const c = {
-      id: s.id,
-      title: s.title || '', hot: s.hot || '', tone: s.tone || '', scene: s.scene || '',
-      timeline: Array.isArray(s.timeline) ? s.timeline.join('\n') : (s.timeline || ''),
-      light: s.light || '', vo: s.vo || '',
-      mats: [0,1,2].map(i => ({ desc: (s.mats && s.mats[i] && s.mats[i].desc) || '', title: (s.mats && s.mats[i] && s.mats[i].title) || '' }))
-    };
-    c.all = composeText(c);
-    addCard(c);
-  });
-  collect(); renderAll();
-}
+$('#btn-gen').onclick = generate;
 
 /* ---------- cards ---------- */
-function emptyCard(){
-  return { id: 'c' + Date.now() + Math.random().toString(36).slice(2,6),
-    title:'', hot:'', tone:'', scene:'', timeline:'', light:'', vo:'', all:'',
-    mats:[{desc:'',title:''},{desc:'',title:''},{desc:'',title:''}] };
-}
-function addCard(data){
-  const c = data || emptyCard();
-  const root = $('#card-tpl').content.cloneNode(true).querySelector('.card');
-  root.dataset.id = c.id;
-  root.querySelector('.c-hot').value = c.hot || '';
-  root.querySelector('.c-all').value = c.all || composeText(c);
-  root.querySelectorAll('.mat').forEach((m, i) => {
-    m.querySelector('.m-desc').value = (c.mats[i]||{}).desc || '';
-    m.querySelector('.m-title').value = (c.mats[i]||{}).title || '';
-  });
-  root.querySelector('.del').onclick = () => { root.remove(); delete serverIssues[c.id]; collect(); renderAll(); };
-  root.querySelector('.c-copy').onclick = () => { copyText(root.querySelector('.c-all').value, root.querySelector('.c-copy')); };
-  root.querySelectorAll('.m-desc, .m-title').forEach(el => {
-    el.addEventListener('focus', () => { copyText(el.value, el); });
-  });
-  root.addEventListener('input', () => { collect(); renderAll(); });
-  $('#cards').appendChild(root);
-  return root;
-}
-function collect(){
-  cards = $$('#cards .card').map(root => {
-    const all = root.querySelector('.c-all').value;
-    const parsed = parseText(all);
-    return Object.assign({
-      id: root.dataset.id,
-      hot: root.querySelector('.c-hot').value,
-      all: all,
-      mats: Array.from(root.querySelectorAll('.mat')).map(m => ({ desc: m.querySelector('.m-desc').value, title: m.querySelector('.m-title').value }))
-    }, parsed);
-  });
-  save(LS_CARDS, cards);
-}
-function loadCards(){
-  $('#cards').innerHTML = '';
-  if (!cards || !cards.length) { addCard(); addCard(); }
-  else cards.forEach(c => addCard(Object.assign({}, c, { all: (c.all && c.all.indexOf('固定块') >= 0) ? c.all : composeText(c) })));
-  collect();
-}
-
-/* ---------- 合并框：合成 / 解析 / 复制 ---------- */
-const FIELD_KEYS = { '标题':'title', '风格调性':'tone', '场景设定':'scene', '镜头光线':'light', '口播文案':'vo' };
-function composeText(c){
-  const L = [];
-  L.push('标题：' + (c.title || ''));
-  L.push('');
-  L.push('风格调性：' + (c.tone || ''));
-  L.push('');
-  L.push('场景设定：' + (c.scene || ''));
-  L.push('');
-  L.push('时间轴分镜（四段）：');
-  splitLines(c.timeline).forEach(l => L.push(l));
-  L.push('');
-  L.push('镜头光线：' + (c.light || ''));
-  L.push('');
-  L.push('口播文案：' + (c.vo || ''));
-  L.push('');
-  L.push('固定块（逐字复用）：');
-  String((spec && spec.fixed) || '').split('\n').forEach(l => L.push(l));
-  return L.join('\n');
-}
-function parseText(t){
-  const res = { title:'', tone:'', scene:'', timeline:'', light:'', vo:'' };
-  let cur = '';
-  String(t || '').split('\n').forEach(raw => {
-    const line = raw.trim();
-    if (!line) return;
-    let key = '';
-    for (const k in FIELD_KEYS) if (line.indexOf(k) === 0) { key = FIELD_KEYS[k]; break; }
-    if (key){
-      const i = line.indexOf(':') >= 0 ? line.indexOf(':') : line.indexOf('：');
-      res[key] = i >= 0 ? line.slice(i + 1).trim() : '';
-      cur = key;
-      return;
-    }
-    if (line.indexOf('时间轴分镜') === 0){
-      const i = line.indexOf(':') >= 0 ? line.indexOf(':') : line.indexOf('：');
-      res.timeline = i >= 0 ? line.slice(i + 1).trim() : '';
-      cur = 'timeline';
-      return;
-    }
-    if (line.indexOf('固定块') === 0) { cur = ''; return; }
-    if (cur === 'timeline'){ res.timeline += (res.timeline ? '\n' : '') + line; return; }
-    if (cur) res[cur] += line;
-  });
-  return res;
-}
-async function copyText(text, el){
-  if (!text) return;
-  let ok = false;
-  try { await navigator.clipboard.writeText(text); ok = true; }
-  catch(e){
-    try {
-      const ta = document.createElement('textarea');
-      ta.value = text;
-      document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove(); ok = true;
-    } catch(e2){}
-  }
-  if (!el) return;
-  if (ok){
-    el.classList.add('copied');
-    if (el.tagName === 'BUTTON'){
-      const old = el.textContent;
-      el.textContent = '已复制';
-      setTimeout(() => { el.textContent = old; }, 1400);
-    } else {
-      const tag = el.parentElement && el.parentElement.querySelector('.tag');
-      if (tag){
-        const old = tag.textContent;
-        tag.textContent = '已复制';
-        setTimeout(() => { tag.textContent = old; }, 1400);
-      }
-    }
-    setTimeout(() => el.classList.remove('copied'), 1400);
-  }
-}
-
-/* ---------- 本地校验 ---------- */
-function countWords(s){
-  const t = String(s||'');
-  const cjk = (t.match(/[\u4e00-\u9fff\u3040-\u30ff]/g)||[]).length;
-  const latin = (t.replace(/[\u4e00-\u9fff\u3040-\u30ff]/g,' ').match(/[A-Za-z0-9]+/g)||[]).length;
-  return cjk + latin;
-}
-function splitLines(v){ return String(v||'').split('\n').map(x=>x.trim()).filter(Boolean); }
-function timelineSegments(v){ return splitLines(v).filter(l => /\d+\s*-\s*\d+\s*秒/.test(l)); }
-function quotes(v){ const m = String(v||'').match(/[「」“”"'‘]/g); return m ? m.length : 0; }
-function tagsOf(d){ return String(d||'').match(/#[^\s#]+/g) || []; }
-
-function validate(card, allCards){
-  const r = spec.rules, out = [];
-  const push = (t, m) => out.push({t, m});
-  if (!card.title.trim()) push('err', '缺脚本标题');
-  if (!card.tone.trim()) push('err', '缺风格调性');
-  if (!card.scene.trim()) push('err', '缺场景设定');
-  if (!card.light.trim()) push('err', '缺镜头光线');
-
-  const segs = timelineSegments(card.timeline);
-  if (segs.length !== 4) push('err', '时间轴需 4 段（0-3/3-6/6-9/9-12 秒），当前 ' + segs.length + ' 段');
-  else if (segs.some(s => quotes(s) < 2)) push('err', '时间轴每段需含台词（用「」包住）');
-
-  const vo = card.vo.trim(), n = countWords(vo);
-  if (!vo) push('err', '缺口播文案');
-  else {
-    if (n < r.wordMin || n > r.wordMax) push('err', '口播 ' + n + ' 字，需在 ' + r.wordMin + '–' + r.wordMax + ' 字');
-    const sp = n / r.duration;
-    if (sp > r.speed) push('err', '语速 ' + sp.toFixed(1) + ' 字/秒，超出上限 ' + r.speed);
-    else if (sp > r.speed - 0.4) push('warn', '语速 ' + sp.toFixed(1) + ' 字/秒，接近上限');
-  }
-
-  if (/酒|酱酒|酣客/.test(card.vo + card.scene + card.timeline)) push('err', '出现酒相关内容，脚本中禁止');
-
-  const norm = s => String(s||'').replace(/\s+/g,'');
-  if (card.tone.trim() && allCards.some(c => c.id !== card.id && norm(c.tone) === norm(card.tone))) push('err', '风格调性与其他条目逐字重复');
-  if (card.scene.trim() && allCards.some(c => c.id !== card.id && norm(c.scene) === norm(card.scene))) push('warn', '场景设定与其他条目相同');
-  if (card.light.trim() && allCards.some(c => c.id !== card.id && norm(c.light) === norm(card.light))) push('warn', '镜头光线与其他条目相同');
-
-  const titles = [];
-  card.mats.forEach((m, i) => {
-    const L = ['A','B','C'][i];
-    if (!m.desc.trim()) { push('err', L + ' 缺视频描述'); return; }
-    if (!m.title.trim()) { push('err', L + ' 缺短标题'); return; }
-    const tags = tagsOf(m.desc);
-    if (tags.length < r.tagsMin) push('err', L + ' 描述话题标签 ' + tags.length + ' 个，需 ≥ ' + r.tagsMin);
-    const tw = countWords(m.title);
-    if (tw > r.titleMax) push('err', L + ' 短标题 ' + tw + ' 字，超出 ' + r.titleMax + ' 字');
-    if (titles.indexOf(m.title.trim()) >= 0) push('err', L + ' 短标题与本条其他组重复');
-    if (history.indexOf(m.title.trim()) >= 0) push('err', L + ' 短标题与近 ' + r.recent + ' 条已用标题重复');
-    if (BANNED.some(b => m.desc.indexOf(b) >= 0 || m.title.indexOf(b) >= 0)) push('err', L + ' 含绝对化/违规词');
-    titles.push(m.title.trim());
-  });
-  const firsts = card.mats.map(m => String(m.desc).trim().split(/[。！？\n]/)[0]);
-  if (firsts.every(Boolean) && new Set(firsts).size < firsts.length) push('warn', '三组描述首句有重复');
-  return out;
-}
-
-/* ---------- render ---------- */
-function renderChecks(){
-  const all = $$('#cards .card').map(root => {
-    const p = parseText(root.querySelector('.c-all').value);
-    return { id: root.dataset.id, tone: p.tone, scene: p.scene, light: p.light };
-  });
-  $$('#cards .card').forEach(root => {
-    const card = Object.assign({ id: root.dataset.id }, parseText(root.querySelector('.c-all').value), {
-      mats: Array.from(root.querySelectorAll('.mat')).map(m => ({ desc: m.querySelector('.m-desc').value, title: m.querySelector('.m-title').value }))
-    });
-    const local = validate(card, all);
-    const srv = (serverIssues[card.id] || []).filter(i => i.t === 'err');
-    const seen = new Set();
-    const res = local.concat(srv).filter(i => { const k = i.t + '|' + i.m; if (seen.has(k)) return false; seen.add(k); return true; });
-    const box = root.querySelector('.checks');
-    box.innerHTML = res.length
-      ? res.map(x => '<span class="' + x.t + '">' + (x.t === 'err' ? '✗ ' : '! ') + x.m + '</span>').join('')
-      : '<span class="ok">✓ 全部通过</span>';
-  });
-}
 function renderAll(){
-  renderChecks();
-  $('#summary').textContent = '共 ' + $$('#cards .card').length + ' 条，错误 ' + $$('.checks .err').length + '，提醒 ' + $$('.checks .warn').length;
-  if ($('#tab-out').classList.contains('active')) renderPreview();
-}
-
-/* ---------- output ---------- */
-function buildScriptText(card){
-  const L = [];
-  L.push('## 脚本 ' + (card.title || '未命名'));
-  if (card.hot) L.push('');
-  if (card.hot) L.push('**选题来源**：' + card.hot);
-  L.push('');
-  L.push('**风格调性**：' + (card.tone || '（待填）'));
-  L.push('');
-  L.push('**场景设定**：' + (card.scene || '（待填）'));
-  L.push('');
-  L.push('**时间轴分镜**（首帧即人脸、0.5 秒内开口）：');
-  splitLines(card.timeline).forEach(l => L.push('- ' + l));
-  L.push('');
-  const n = countWords(card.vo);
-  L.push('**口播（' + n + ' 字，约 ' + (n / spec.rules.duration).toFixed(1) + ' 字/秒，' + spec.rules.duration + ' 秒内说完）**：' + (card.vo || ''));
-  L.push('');
-  L.push('**镜头光线**：' + (card.light || '（待填）'));
-  L.push('');
-  L.push('**发布物料**');
-  card.mats.forEach((m, i) => {
-    L.push('- ' + ['A｜反常识','B｜共鸣','C｜悬念'][i] + '｜描述：' + (m.desc||''));
-    L.push('  短标题：' + (m.title||''));
+  const box = $('#cards');
+  box.innerHTML = '';
+  (cards || []).forEach((c, i) => {
+    const node = $('#card-tpl').content.cloneNode(true);
+    const el = node.querySelector('.card');
+    el.dataset.i = i;
+    el.querySelector('.c-hot').value = c.hot || '';
+    el.querySelector('.c-all').value = c.all || '';
+    const mats = el.querySelectorAll('.mat');
+    (c.materials || []).forEach((m, j) => {
+      if (mats[j]){
+        mats[j].querySelector('.m-desc').value = m.desc || '';
+        mats[j].querySelector('.m-title').value = m.title || '';
+      }
+    });
+    el.querySelector('.c-copy').onclick = () => copyText(el.querySelector('.c-all').value);
+    el.querySelector('.del').onclick = () => { cards.splice(i,1); save(LS_CARDS, cards); renderAll(); };
+    el.querySelector('.c-all').oninput = () => { cards[i].all = el.querySelector('.c-all').value; save(LS_CARDS, cards); };
+    el.querySelector('.c-hot').oninput = () => { cards[i].hot = el.querySelector('.c-hot').value; save(LS_CARDS, cards); };
+    mats.forEach((m, j) => {
+      m.querySelector('.m-desc').oninput = () => { cards[i].materials[j].desc = m.querySelector('.m-desc').value; save(LS_CARDS, cards); };
+      m.querySelector('.m-title').oninput = () => { cards[i].materials[j].title = m.querySelector('.m-title').value; save(LS_CARDS, cards); };
+      m.querySelector('.m-desc').onclick = () => copyText(m.querySelector('.m-desc').value);
+      m.querySelector('.m-title').onclick = () => copyText(m.querySelector('.m-title').value);
+    });
+    box.appendChild(node);
   });
-  return L.join('\n');
+  $('#summary').textContent = (cards || []).length + ' 条脚本';
 }
-function buildFullText(){
-  const out = [];
-  out.push('# 视频号脚本 ' + new Date().toISOString().slice(0,10));
-  out.push('');
-  out.push('> 每条脚本正文末尾已附固定块（逐字复用），此处不再重复。');
-  out.push('');
-  cards.forEach(c => { out.push(buildScriptText(c)); out.push('---'); });
-  return out.join('\n');
-}
-function renderPreview(){ $('#out-preview').textContent = buildFullText(); }
 
-$('#btn-add').onclick = () => { addCard(); collect(); renderAll(); };
-$('#btn-copy-all').onclick = async () => {
-  const text = buildFullText();
-  try { await navigator.clipboard.writeText(text); }
-  catch(e){ const ta = document.createElement('textarea'); ta.value = text; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove(); }
-  await recordHistory();
-  $('#summary').textContent = '已复制全部到剪贴板';
+function copyText(t){
+  navigator.clipboard.writeText(t).then(() => {
+    // 可以在这里加一个 toast 提示
+  }).catch(() => {
+    const ta = document.createElement('textarea');
+    ta.value = t;
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+  });
+}
+
+$('#btn-add').onclick = () => {
+  cards.push({ hot: '', all: '', materials: [{desc:'',title:''},{desc:'',title:''},{desc:'',title:''}] });
+  save(LS_CARDS, cards);
+  renderAll();
 };
-$('#btn-export-md').onclick = async () => { download('video-scripts-' + stamp() + '.md', buildFullText(), 'text/markdown'); await recordHistory(); };
-$('#btn-export-json').onclick = async () => { download('video-scripts-' + stamp() + '.json', JSON.stringify({ spec, cards }, null, 2), 'application/json'); await recordHistory(); };
-function stamp(){ const d = new Date(); const p = n => String(n).padStart(2,'0'); return d.getFullYear() + p(d.getMonth()+1) + p(d.getDate()) + '-' + p(d.getHours()) + p(d.getMinutes()); }
-async function recordHistory(){
-  const titles = [];
-  cards.forEach(c => c.mats.forEach(m => { const t = (m.title||'').trim(); if (t && titles.indexOf(t) < 0) titles.push(t); }));
-  try {
-    const r = await fetch('/api/history', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ items: titles }) });
-    const j = await r.json();
-    if (j.items) history = j.items;
-  } catch(e){
-    titles.forEach(t => { if (history.indexOf(t) < 0) history.push(t); });
-  }
-  renderHistory();
-}
-function download(name, text, mime){
-  const b = new Blob([text], { type: mime + ';charset=utf-8' });
-  const u = URL.createObjectURL(b);
-  const a = document.createElement('a'); a.href = u; a.download = name;
-  document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(u);
-  $('#summary').textContent = '已导出 ' + name;
-}
-async function loadHistory(){
+
+/* ---------- history ---------- */
+async function renderHistory(){
   try {
     const r = await fetch('/api/history');
     const j = await r.json();
     history = j.items || [];
-  } catch(e){ history = load('vs.history.v1', []); }
-  renderHistory();
-}
-function renderHistory(){
-  $('#history-list').innerHTML = history.length ? history.map(h => '<li>' + h + '</li>').join('') : '<li>暂无</li>';
+    $('#history-list').innerHTML = history.map(h => '<li><span>' + h.title + '</span><span class="time">' + new Date(h.time).toLocaleString() + '</span></li>').join('');
+  } catch(e){ console.error(e); }
 }
 $('#btn-clear-history').onclick = async () => {
-  try { await fetch('/api/history', { method:'DELETE' }); } catch(e){}
-  history = []; renderHistory();
+  if (!confirm('确定清空历史标题？')) return;
+  try {
+    await fetch('/api/history/clear', { method: 'POST' });
+    renderHistory();
+  } catch(e){ console.error(e); }
 };
 
-/* ---------- init ---------- */
-fillSpec();
-loadCards();
-renderAll();
-(async function init(){
-  try {
-    const r = await fetch('/api/spec');
-    const j = await r.json();
-    if (j && j.fixed){ spec = { fixed: j.fixed, rules: Object.assign({}, DEFAULT_SPEC.rules, j.rules || {}) }; save(LS_SPEC_CACHE, spec); fillSpec(); }
-  } catch(e){}
-  try {
-    const r = await fetch('/api/config');
-    const j = await r.json();
-    if (j.base) $('#cfg-base').value = j.base;
-    if (j.model) $('#cfg-model').value = j.model;
-    if (!j.hasKey){ const el = $('#cfg-key'); if (el) el.placeholder = '未配置，点「保存模型配置」填入'; }
-  } catch(e){}
-  await loadHistory();
+/* ---------- api ---------- */
+async function post(url, body){
+  const r = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  const j = await r.json();
+  if (!r.ok) throw new Error(j.error || '请求失败');
+  return j;
+}
+
+/* ---------- version ---------- */
+(async () => {
   try {
     const r = await fetch('/api/version');
     const j = await r.json();
-    const el = $('#app-version');
-    if (el && j && j.version) el.textContent = 'v' + j.version + (j.commit ? ' · ' + j.commit : '');
-  } catch(e){}
+    $('#app-version').textContent = 'v' + j.version + ' · ' + (j.commit || '').slice(0, 7);
+  } catch(e){ $('#app-version').textContent = 'v?'; }
 })();
+
+/* ---------- init ---------- */
+fillSpec();
+renderAll();
