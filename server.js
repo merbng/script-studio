@@ -18,6 +18,10 @@ const hrank = require('./hot-rank');
 
 const ROOT = __dirname;
 const PORT = +(process.env.PORT || 8787);
+
+const APP_VERSION = (() => { try { return require('./package.json').version || '0.0.0'; } catch(e){ return '0.0.0'; } })();
+const GIT_COMMIT = (process.env.RENDER_GIT_COMMIT || process.env.COMMIT_SHA || '').slice(0, 7);
+const BUILT_AT = new Date().toISOString();
 const DATA = path.join(ROOT, 'data');
 if (!fs.existsSync(DATA)) fs.mkdirSync(DATA, { recursive: true });
 
@@ -305,6 +309,9 @@ const server = http.createServer(async (req, res) => {
     if (p === '/api/health'){
       const c = llmConfig();
       return json(res, 200, { ok:true, llm: !!c.key, model: c.model, base: c.base });
+    }
+    if (p === '/api/version'){
+      return json(res, 200, { version: APP_VERSION, commit: GIT_COMMIT, builtAt: BUILT_AT });
     }
     if (p === '/api/config' && req.method === 'GET'){
       const c = llmConfig();
