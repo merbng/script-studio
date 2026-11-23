@@ -10,8 +10,8 @@
 <link rel="stylesheet" href="hot.css" />
 <link rel="stylesheet" href="hot-sources.css" />
 </head>
-<body>
-<header class="top">
+<body class="tech-theme">
+<header class="top tech-header">
   <div>
     <h1>视频号脚本标准化生成器 <span id="app-version" class="app-version">v…</span></h1>
     <p class="sub">实时热榜 → 人设贴合分层 → 大模型选题与成稿 → 自动校验修复 → 导出</p>
@@ -20,7 +20,6 @@
     <button class="tab active" data-tab="gen">脚本</button>
     <button class="tab" data-tab="hot">实时热榜</button>
     <button class="tab" data-tab="spec">模板设置</button>
-    <button class="tab" data-tab="out">导出</button>
     <button class="tab" data-tab="history">标题历史</button>
   </nav>
 </header>
@@ -28,11 +27,8 @@
 <main>
   <section class="panel active" id="tab-gen">
     <div class="toolbar">
-      <button id="btn-gen">按热榜一键生成 1 条</button>
+      <button id="btn-gen" class="primary">按热榜一键生成 1 条</button>
       <button id="btn-add">+ 加一条脚本</button>
-      <button id="btn-copy-all">复制全部</button>
-      <button id="btn-export-md">导出 Markdown</button>
-      <button id="btn-export-json">导出 JSON</button>
       <span class="spacer"></span>
       <span id="summary" class="summary"></span>
     </div>
@@ -42,10 +38,10 @@
 
   <section class="panel" id="tab-hot">
     <div class="toolbar">
-      <button id="btn-refresh-hot">刷新热榜</button>
+      <button id="btn-refresh-hot">↻ 刷新热榜</button>
       <label class="inline">生成条数 <input id="gen-count" type="number" value="1" min="1" max="10" /></label>
       <input id="gen-extra" class="wide" placeholder="额外要求（可选），如：偏向厨房与职场场景" />
-      <button id="btn-generate">用选中热榜生成脚本</button>
+      <button id="btn-generate" class="primary">用选中热榜生成脚本</button>
       <span class="spacer"></span>
       <span id="hot-status" class="summary"></span>
     </div>
@@ -53,7 +49,7 @@
       人设：@金木 · 中年男性技术宅 · 北方人。每条话题都会标出它贴不贴人设：<b>核心人设</b>（优先选）｜<b>边缘相关</b>（能改成技术宅/中年/北方视角才选）｜<b>与人设无关</b>（原则上不用）。<br />
       只有绝对红线话题（政治军事、群体事件、社会案件、灾难事故）会被剔除，其余话题全部保留。勾选左侧复选框可指定选题来源；不勾选则只用「核心人设」话题。数据来自微博、抖音、哔哩哔哩、快手、知乎、今日头条、百度、腾讯新闻、澎湃新闻、小红书共 10 个平台的公开榜单，仅作选题参考。
     </p>
-    <div id="hot-list" class="hot-list"></div>
+    <div id="hot-list" class="hot-list tech-list"></div>
   </section>
 
   <section class="panel" id="tab-spec">
@@ -92,11 +88,6 @@
         </ol>
       </div>
     </div>
-  </section>
-
-  <section class="panel" id="tab-out">
-    <h2>预览</h2>
-    <pre id="out-preview" class="preview"></pre>
   </section>
 
   <section class="panel" id="tab-history">
@@ -147,6 +138,5 @@
 </template>
 
 <script src="app.js"></script>
-<div id="mausbot-badge" style="all:initial;position:fixed!important;right:12px!important;bottom:12px!important;z-index:2147483647!important;font:12px/1.2 system-ui,-apple-system,'Segoe UI',sans-serif!important;color:#333!important;background:rgba(255,255,255,.94)!important;border:1px solid rgba(0,0,0,.12)!important;border-radius:999px!important;padding:5px 10px!important;box-shadow:0 1px 3px rgba(0,0,0,.12)!important"><a href="https://mausbot.com/?ref=page" target="_blank" rel="noopener" style="color:inherit!important;text-decoration:none!important;font:inherit!important">Made with MausBot</a><span style="opacity:.5!important;padding:0 6px!important">·</span><a href="/_mausbot/report" style="color:inherit!important;text-decoration:none!important;font:inherit!important;opacity:.7!important">Report</a></div><script type="module" src="https://static.cloudflareinsights.com/beacon.min.js/vce701823e78c4301a35b7e07294d87301792088814092" integrity="sha512-UKNk8GbxkABxKcXYuLkO16EleLGUkcvJWtpSNmExE0Too3ZaFAxTscNWEc1OdAv5/BikHawapSCaiD2XCmp+Bw==" data-cf-beacon='{"version":"2024.11.0","token":"4e985a3c36f34f6daf76310bce6aa670","r":1,"spa":2}' crossorigin="anonymous"></script>
 </body>
 </html>
