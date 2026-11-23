@@ -184,7 +184,7 @@ async function generate(){
   const items = checked.length
     ? checked.map(c => ({ title: c.dataset.title, source: c.dataset.source }))
     : hotItems.filter(i => i.personaLevel === 'core').slice(0, 40);
-  const count = +$('#gen-count').value || 5;
+  const count = +$('#gen-count').value || 1;
   const extra = $('#gen-extra').value.trim();
   const btn = $('#btn-generate');
   btn.disabled = true; btn.textContent = '生成中…';
@@ -232,6 +232,7 @@ async function generate(){
 }
 
 $('#btn-gen').onclick = async () => { if (!hotItems.length) await loadHot(); generate(); };
+$('#btn-generate').onclick = generate;
 
 function applyScripts(list){
   $('#cards').innerHTML = '';
