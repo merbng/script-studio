@@ -1,12 +1,8 @@
 {
   "name": "script-studio",
-  "version": "1.0.2",
-  "private": true,
-  "description": "视频号脚本标准化生成器：实时热榜 + 人设贴合排序 + 大模型 + 模板拼装 + 规则校验",
+  "version": "1.0.3",
+  "description": "视频号脚本标准化生成器",
   "main": "server.js",
-  "engines": {
-    "node": ">=18"
-  },
   "scripts": {
     "start": "node server.js",
     "bump": "npm version patch --no-git-tag-version"
