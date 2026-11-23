@@ -176,7 +176,7 @@ async function chat(messages, temperature = 0.85){
   const body = JSON.stringify({ model, temperature, response_format: { type: 'json_object' }, messages });
   const r = await fetchText(base + '/chat/completions', {
     method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + key }, body
-  }, 180000);
+  }, 300000);
   if (r.status !== 200) throw new Error('模型接口返回 ' + r.status + ': ' + r.body.slice(0, 300));
   const j = JSON.parse(r.body);
   const content = j.choices && j.choices[0] && j.choices[0].message && j.choices[0].message.content;
