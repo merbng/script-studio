@@ -559,4 +559,10 @@ renderAll();
     if (!j.hasKey){ const el = $('#cfg-key'); if (el) el.placeholder = '未配置，点「保存模型配置」填入'; }
   } catch(e){}
   await loadHistory();
+  try {
+    const r = await fetch('/api/version');
+    const j = await r.json();
+    const el = $('#app-version');
+    if (el && j && j.version) el.textContent = 'v' + j.version + (j.commit ? ' · ' + j.commit : '');
+  } catch(e){}
 })();
