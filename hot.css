@@ -1,10 +1,145 @@
-/* 追加：热榜列表与配置相关样式 */
-.hot-list{background:#fff;border:1px solid var(--line);border-radius:12px;padding:8px 16px 16px}
-.hot-list h3{font-size:13px;color:var(--muted);margin:14px 0 4px;font-weight:600}
-.hot-row{display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px dashed #eef0f2;font-size:13px;cursor:pointer}
-.hot-row:hover{background:#fafbfc}
-.hot-row .ht{flex:1}
-.hot-row .hh{color:var(--muted);font-size:12px}
-.hot-row .hs{background:#eef2ff;color:var(--accent);border-radius:5px;padding:1px 6px;font-size:11px}
-label.inline{display:inline-flex;align-items:center;gap:6px;font-size:13px;color:var(--muted)}
-input.wide{flex:1;min-width:220px;padding:7px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;font-size:13px}
+/* 热榜深色主题覆盖：修复白底白字，保证标题、元信息与选中态可读 */
+.hot-list,
+#hot-list.hot-list.tech-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  background: #111631;
+  border: 1px solid rgba(0, 212, 255, 0.22);
+  border-radius: 12px;
+  padding: 16px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.03);
+  color: #e0e6ed;
+}
+
+.hot-list h3 {
+  margin: 20px 0 6px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(0, 212, 255, 0.18);
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: #54e6ff;
+  font-family: var(--font-mono, 'SF Mono', 'Fira Code', Consolas, monospace);
+}
+.hot-list h3:first-child { margin-top: 4px; }
+
+.hot-row,
+.hot-row.lv-core,
+.hot-row.lv-edge,
+.hot-row.lv-off {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  padding: 11px 14px;
+  background: #151c3e;
+  border: 1px solid rgba(0, 212, 255, 0.16);
+  border-radius: 8px;
+  font-size: 13px;
+  color: #e0e6ed;
+  cursor: pointer;
+  opacity: 1;
+  transition: background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.hot-row:hover,
+.hot-row.lv-core:hover,
+.hot-row.lv-edge:hover,
+.hot-row.lv-off:hover {
+  background: #1a2350;
+  border-color: rgba(0, 212, 255, 0.48);
+  box-shadow: 0 0 16px rgba(0, 212, 255, 0.14);
+}
+
+.hot-row.selected,
+.hot-row:has(input[type="checkbox"]:checked) {
+  background: #102b4a;
+  border-color: #00d4ff;
+  box-shadow: 0 0 0 1px rgba(0, 212, 255, 0.35), 0 0 18px rgba(0, 212, 255, 0.22);
+}
+
+.hot-row:focus-within {
+  outline: 2px solid #00d4ff;
+  outline-offset: 2px;
+}
+
+.hot-row input[type="checkbox"] {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: #00d4ff;
+  cursor: pointer;
+}
+
+.hot-row .ht {
+  flex: 1;
+  min-width: 0;
+  color: #f2f7ff;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+}
+.hot-row.lv-core .ht { font-weight: 700; }
+
+.hot-row .lvl,
+.hot-row .lvl-core,
+.hot-row .lvl-edge,
+.hot-row .lvl-off {
+  flex: none;
+  padding: 2px 8px;
+  border-radius: 5px;
+  font-size: 10px;
+  font-weight: 700;
+  white-space: nowrap;
+  font-family: var(--font-mono, Consolas, monospace);
+}
+.hot-row .lvl-core { background: rgba(0, 255, 136, 0.16); color: #6cffb4; border: 1px solid rgba(0, 255, 136, 0.45); }
+.hot-row .lvl-edge { background: rgba(255, 165, 2, 0.16); color: #ffc56b; border: 1px solid rgba(255, 165, 2, 0.45); }
+.hot-row .lvl-off  { background: rgba(139, 148, 167, 0.16); color: #bbc5d8; border: 1px solid rgba(139, 148, 167, 0.45); }
+
+.hot-row .tags,
+.hot-row .hs,
+.hot-row .hs.src,
+.hot-row .hh {
+  flex: none;
+  font-size: 11px;
+  line-height: 1.5;
+  font-family: var(--font-mono, Consolas, monospace);
+  white-space: nowrap;
+}
+.hot-row .tags { color: #a7b3ca; }
+.hot-row .hs { color: #8b94a7; }
+.hot-row .hh { color: #54e6ff; font-weight: 600; }
+.hot-row .hs.warn { background: rgba(255, 165, 2, 0.16); color: #ffc56b; border: 1px solid rgba(255, 165, 2, 0.45); border-radius: 5px; padding: 2px 7px; }
+
+label.inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: #a7b3ca;
+}
+
+input.wide {
+  flex: 1;
+  min-width: 220px;
+  padding: 7px 10px;
+  border: 1px solid rgba(0, 212, 255, 0.22);
+  border-radius: 8px;
+  font: inherit;
+  font-size: 13px;
+  background: rgba(0, 0, 0, 0.3);
+  color: #e0e6ed;
+}
+input.wide::placeholder { color: #5a6478; }
+input.wide:focus { outline: none; border-color: #00d4ff; box-shadow: 0 0 20px rgba(0, 212, 255, 0.3); }
+
+@media (max-width: 720px) {
+  .hot-list { padding: 12px; }
+  .hot-row { flex-wrap: wrap; align-items: flex-start; }
+  .hot-row .ht { flex: 1 1 calc(100% - 28px); }
+  .hot-row .tags, .hot-row .hs, .hot-row .hh { white-space: normal; }
+}

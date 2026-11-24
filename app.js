@@ -169,8 +169,11 @@ function renderHot(j){
         (srcs ? '<span class="hs src">' + srcs + '</span>' : '');
       row.querySelector('.ht').textContent = it.title;
       if (it.heat) row.querySelector('.hh').textContent = '热度 ' + it.heat;
-      row.querySelector('input').dataset.title = it.title;
-      row.querySelector('input').dataset.source = srcs;
+      const cb = row.querySelector('input');
+      cb.dataset.title = it.title;
+      cb.dataset.source = srcs;
+      /* 选中态：加 selected 类，兼容不支持 :has 的浏览器 */
+      cb.addEventListener('change', () => row.classList.toggle('selected', cb.checked));
       box.appendChild(row);
     });
   });

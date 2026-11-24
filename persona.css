@@ -1,11 +1,56 @@
-/* 追加：人设分层徽标样式 */
-.hot-row .lvl{border-radius:5px;padding:1px 7px;font-size:11px;white-space:nowrap;font-weight:600}
-.hot-row .lvl-core{background:#e6f4ea;color:#137333}
-.hot-row .lvl-edge{background:#fff4e5;color:#b06000}
-.hot-row .lvl-off{background:#f1f3f5;color:#6b7280}
-.hot-row .tags{color:var(--muted);font-size:11px;white-space:nowrap}
-.hot-row .hs.warn{background:#fff4e5;color:#b06000}
-.hot-row.lv-core .ht{font-weight:600}
-.hot-row.lv-core{background:#f6fbf7}
-.hot-row.lv-core:hover{background:#eef7f1}
-.hot-row.soft{opacity:.75}
+/* 人设分层徽标：与深色主题统一，保持可读 */
+.hot-row .lvl {
+  border-radius: 5px;
+  padding: 2px 8px;
+  font-size: 10px;
+  white-space: nowrap;
+  font-weight: 700;
+  font-family: var(--font-mono, Consolas, monospace);
+}
+
+.hot-row .lvl-core {
+  background: rgba(0, 255, 136, 0.16);
+  color: #6cffb4;
+  border: 1px solid rgba(0, 255, 136, 0.45);
+}
+
+.hot-row .lvl-edge {
+  background: rgba(255, 165, 2, 0.16);
+  color: #ffc56b;
+  border: 1px solid rgba(255, 165, 2, 0.45);
+}
+
+.hot-row .lvl-off {
+  background: rgba(139, 148, 167, 0.16);
+  color: #bbc5d8;
+  border: 1px solid rgba(139, 148, 167, 0.45);
+}
+
+.hot-row .tags {
+  color: #a7b3ca;
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.hot-row .hs.warn {
+  background: rgba(255, 165, 2, 0.16);
+  color: #ffc56b;
+  border: 1px solid rgba(255, 165, 2, 0.45);
+  border-radius: 5px;
+  padding: 2px 7px;
+}
+
+.hot-row.lv-core .ht {
+  font-weight: 700;
+}
+
+.hot-row.soft {
+  opacity: 0.82;
+}
+
+/* JS 侧选中态兜底（供 app.js 加 selected 类时使用） */
+.hot-row.selected {
+  background: #102b4a;
+  border-color: #00d4ff;
+  box-shadow: 0 0 0 1px rgba(0, 212, 255, 0.35), 0 0 18px rgba(0, 212, 255, 0.22);
+}

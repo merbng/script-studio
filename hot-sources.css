@@ -1,4 +1,35 @@
-/* 追加：热榜来源状态标签 */
-.hot-sources{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0 4px}
-.src-chip{background:#eef7f0;color:#1f7a4d;border:1px solid #cfe8da;border-radius:20px;padding:3px 10px;font-size:12px;white-space:nowrap}
-.src-chip.zero{background:#f7f7f8;color:#9aa1a9;border-color:#e6e8eb}
+/* 热榜来源状态：与深色主题统一，保持元信息可读 */
+.hot-sources {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 10px 0 4px;
+}
+
+.src-chip,
+.hot-sources .src-chip {
+  padding: 3px 10px;
+  background: rgba(0, 212, 255, 0.06);
+  color: #a7b3ca;
+  border: 1px solid rgba(0, 212, 255, 0.22);
+  border-radius: 20px;
+  font-size: 12px;
+  white-space: nowrap;
+  font-family: var(--font-mono, Consolas, monospace);
+  transition: border-color 0.2s ease, color 0.2s ease;
+}
+
+.src-chip:hover,
+.hot-sources .src-chip:hover {
+  color: #54e6ff;
+  border-color: rgba(0, 212, 255, 0.7);
+}
+
+.src-chip.zero,
+.hot-sources .src-chip.zero {
+  background: rgba(139, 148, 167, 0.1);
+  color: #707b91;
+  border-color: rgba(139, 148, 167, 0.28);
+  opacity: 0.8;
+  text-decoration: line-through;
+}
