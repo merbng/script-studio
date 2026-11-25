@@ -15,6 +15,7 @@ const persona = require('./persona');
 const topics = require('./topics');
 const hotlist = require('./hot');
 const hrank = require('./hot-rank');
+const { handleConnectionTest } = require('./server-routes');
 
 const ROOT = __dirname;
 const PORT = +(process.env.PORT || 8787);
@@ -37,7 +38,8 @@ loadEnv();
 
 function readJSON(name, fallback){
   const f = path.join(DATA, name);
-  try { if (fs.existsSync(f)) return JSON.parse(fs.readFileSync(f, 'utf8')); } catch(e){}
+  try {
+    if (fs.existsSync(f)) return JSON.parse(fs.readFileSync(f, 'utf8')); } catch(e){}
   return fallback;
 }
 function writeJSON(name, obj){
@@ -306,6 +308,7 @@ const server = http.createServer(async (req, res) => {
   const u = url.parse(req.url, true);
   const p = u.pathname;
   try {
+    if (await handleConnectionTest(req, res, p, readBody, json, llmConfig)) return;
     if (p === '/api/health'){
       const c = llmConfig();
       return json(res, 200, { ok:true, llm: !!c.key, model: c.model, base: c.base });
