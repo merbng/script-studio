@@ -9,12 +9,12 @@
 <link rel="stylesheet" href="combo.css" />
 <link rel="stylesheet" href="hot.css" />
 <link rel="stylesheet" href="hot-sources.css" />
-<style>.config-actions{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0}.cfg-test-result{display:block;min-height:24px;margin-top:8px;line-height:1.5}.cfg-test-result.error{color:#e66}.config-note{font-size:12px;color:#9aa4b2}</style>
+<style>.config-actions{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0}.cfg-test-result{display:block;min-height:24px;margin-top:8px;line-height:1.5}.cfg-test-result.error{color:#e66}.mat-set{border:1px solid #2a3242;border-radius:8px;padding:12px;margin:10px 0}.mat-set h3{margin:0 0 6px}.mat-title{font-weight:600;margin-bottom:6px}.mat-desc{white-space:pre-wrap;margin-bottom:8px}.config-note{font-size:12px;color:#9aa4b2}</style>
 </head>
 <body class="tech-theme">
 <header class="top tech-header">
   <div><h1>视频号脚本标准化生成器 <span id="app-version" class="app-version">v…</span></h1><p class="sub">实时热榜 → 人设贴合分层 → 大模型选题与成稿 → 自动校验修复 → 导出</p></div>
-  <nav class="tabs"><button class="tab active" data-tab="gen">脚本</button><button class="tab" data-tab="hot">实时热榜</button><button class="tab" data-tab="spec">模板设置</button><button class="tab" data-tab="history">标题历史</button></nav>
+  <nav class="tabs"><button class="tab active" data-tab="gen">脚本</button><button class="tab" data-tab="hot">实时热榜</button><button class="tab" data-tab="spec">模板设置</button><button class="tab" data-tab="mats">发布物料</button><button class="tab" data-tab="history">标题历史</button></nav>
 </header>
 <main>
   <section class="panel active" id="tab-gen"><div class="toolbar"><button id="btn-gen" class="primary">按热榜一键生成 1 条</button><button id="btn-add">+ 加一条脚本</button><span class="spacer"></span><span id="summary" class="summary"></span></div><p class="hint">每条脚本的「标题 / 风格调性 / 场景设定 / 时间轴分镜 / 镜头光线 / 口播文案」都合并在同一个输入框里，改完点「一键复制」即可取走整条；发布物料的描述框和短标题框，鼠标点进去就自动复制框内内容。</p><div id="cards"></div></section>
@@ -27,6 +27,11 @@
     <label>LLM_BASE_URL <input id="cfg-base" placeholder="https://api.openai.com/v1" /></label><label>LLM_API_KEY <input id="cfg-key" type="password" placeholder="留空则使用服务端已保存密钥" autocomplete="off" /></label><label>LLM_MODEL <input id="cfg-model" placeholder="gpt-4o-mini" /></label><p class="hint">密钥保存在本机 .env，不留在浏览器存储；诊断日志不会输出密钥。</p>
     <button id="btn-save-spec">保存模板</button> <button id="btn-save-cfg">保存模型配置</button><span id="spec-saved" class="ok"></span><output id="cfg-test-result" class="cfg-test-result" aria-live="polite"></output>
   </div><div><h2>校验规则清单</h2><ul class="rules" id="rule-list"></ul><h2>三条风格区分</h2><p class="hint">三套发布物料应覆盖：反常识 / 共鸣 / 悬念提问 三种角度，各自独立满足全部规则。</p><h2>使用说明</h2><ol class="rules"><li>「实时热榜」页刷新榜单，话题全部保留，按人设贴合度分层标色。</li><li>点「生成脚本」，模型只从「核心人设」话题里选题，服务端自动校验并让模型自修复不合格条目。</li><li>脚本页每张卡片上半部分是合并后的脚本输入框，下半部分是发布物料；右侧实时校验，红字为必须修，绿字为通过。</li><li>全部通过后点「一键复制」取走整条脚本，或导出 Markdown，直接丢给制作和发布。</li></ol></div></div></section>
+    <section class="panel" id="tab-mats"><h2>发布物料生成</h2><p class="hint">粘贴完整脚本（标题 / 风格调性 / 场景 / 时间轴 / 口播等均可），点「生成发布物料」，模型只依据脚本原文产出 A/B/C 三套「视频描述 + 短标题」成对备选：反常识 / 共鸣 / 悬念提问。</p>
+    <textarea id="mat-input" rows="14" placeholder="粘贴完整脚本…"></textarea>
+    <div class="config-actions"><button id="btn-mat-gen" class="primary">生成发布物料</button><button id="btn-mat-clear">清空</button><span id="mat-count" class="summary">0 字</span><output id="mat-status" class="cfg-test-result" aria-live="polite"></output></div>
+    <div id="mat-result"></div>
+  </section>
   <section class="panel" id="tab-history"><h2>已用短标题（自动去重校验）</h2><p class="hint">保存于服务端，生成时也会作为「禁用标题」提示给模型。</p><ul id="history-list" class="history"></ul><button id="btn-clear-history">清空历史</button></section>
 </main>
 <template id="card-tpl"><div class="card"><div class="card-head"><input class="c-hot" placeholder="热榜来源" /><button class="del">删除</button></div><div class="body"><div class="col"><div class="combo-head"><span class="combo-label">脚本正文（标题 / 风格调性 / 场景设定 / 时间轴分镜 / 镜头光线 / 口播文案）</span><button class="c-copy">一键复制</button></div><textarea class="c-all" rows="14" spellcheck="false"></textarea></div><div class="col"><div class="materials"><h4>发布物料（三套成对，点进框内自动复制）</h4><div class="mat"><span class="tag">A｜反常识</span><textarea class="m-desc" rows="4" placeholder="视频描述"></textarea><input class="m-title" placeholder="短标题 ≤16 字" /></div><div class="mat"><span class="tag">B｜共鸣</span><textarea class="m-desc" rows="4" placeholder="视频描述"></textarea><input class="m-title" placeholder="短标题 ≤16 字" /></div><div class="mat"><span class="tag">C｜悬念</span><textarea class="m-desc" rows="4" placeholder="视频描述"></textarea><input class="m-title" placeholder="短标题 ≤16 字" /></div></div><div class="checks"></div></div></div></div></template>

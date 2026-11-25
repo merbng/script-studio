@@ -202,8 +202,9 @@ async function generate(){
   try {
     const topics = items.map(it => it.title);
     const data = await post('/api/generate', { topics, tone: '犀利科普', settings: spec, materials: true, count, extra });
-    if (data.cards){
-      cards = data.cards;
+    const list = data.scripts || data.cards;
+    if (list && list.length){
+      cards = list.map(toCard);
       save(LS_CARDS, cards);
       renderAll();
       if (data.issues) serverIssues = data.issues;
@@ -218,6 +219,20 @@ $('#btn-generate').onclick = generate;
 $('#btn-gen').onclick = generate;
 
 /* ---------- cards ---------- */
+function buildAll(c){
+  const timeline = Array.isArray(c.timeline) ? c.timeline.join('\n') : (c.timeline || '');
+  return [c.title, c.tone, c.scene, timeline, c.light, c.vo].filter(Boolean).join('\n');
+}
+
+function toCard(s){
+  if (!s) return { hot: '', all: '', mats: [{desc:'',title:''},{desc:'',title:''},{desc:'',title:''}] };
+  const timeline = Array.isArray(s.timeline) ? s.timeline.join('\n') : (s.timeline || '');
+  const all = [s.title, s.tone, s.scene, timeline, s.light, s.vo].filter(Boolean).join('\n');
+  const mats = (s.mats || s.materials || []).slice(0, 3).map(m => ({ desc: m.desc || '', title: m.title || '' }));
+  while (mats.length < 3) mats.push({ desc: '', title: '' });
+  return { id: s.id, hot: s.hot || s.hotSource || '', all, mats };
+}
+
 function renderAll(){
   const box = $('#cards');
   box.innerHTML = '';
@@ -226,9 +241,11 @@ function renderAll(){
     const el = node.querySelector('.card');
     el.dataset.i = i;
     el.querySelector('.c-hot').value = c.hot || '';
-    el.querySelector('.c-all').value = c.all || '';
+    if (!c.all) c.all = buildAll(c);
+    el.querySelector('.c-all').value = c.all;
     const mats = el.querySelectorAll('.mat');
-    (c.materials || []).forEach((m, j) => {
+    const src = c.mats || c.materials || [];
+    src.forEach((m, j) => {
       if (mats[j]){
         mats[j].querySelector('.m-desc').value = m.desc || '';
         mats[j].querySelector('.m-title').value = m.title || '';
@@ -239,8 +256,9 @@ function renderAll(){
     el.querySelector('.c-all').oninput = () => { cards[i].all = el.querySelector('.c-all').value; save(LS_CARDS, cards); };
     el.querySelector('.c-hot').oninput = () => { cards[i].hot = el.querySelector('.c-hot').value; save(LS_CARDS, cards); };
     mats.forEach((m, j) => {
-      m.querySelector('.m-desc').oninput = () => { cards[i].materials[j].desc = m.querySelector('.m-desc').value; save(LS_CARDS, cards); };
-      m.querySelector('.m-title').oninput = () => { cards[i].materials[j].title = m.querySelector('.m-title').value; save(LS_CARDS, cards); };
+      const get = () => (cards[i].mats || cards[i].materials || [])[j] || {};
+      m.querySelector('.m-desc').oninput = () => { const o = get(); o.desc = m.querySelector('.m-desc').value; save(LS_CARDS, cards); };
+      m.querySelector('.m-title').oninput = () => { const o = get(); o.title = m.querySelector('.m-title').value; save(LS_CARDS, cards); };
       m.querySelector('.m-desc').onclick = () => copyText(m.querySelector('.m-desc').value);
       m.querySelector('.m-title').onclick = () => copyText(m.querySelector('.m-title').value);
     });
@@ -302,6 +320,66 @@ async function post(url, body){
   } catch(e){ $('#app-version').textContent = 'v?'; }
 })();
 
+
+/* ---------- 发布物料 ---------- */
+const LS_MAT_INPUT = 'vs.matInput.v1';
+const LS_MAT_RESULT = 'vs.matResult.v1';
+$('#mat-input').value = load(LS_MAT_INPUT, '');
+updateMatCount();
+renderMatResult(load(LS_MAT_RESULT, null));
+
+function updateMatCount(){ $('#mat-count').textContent = $('#mat-input').value.length + ' 字'; }
+function renderMatResult(r){
+  const box = $('#mat-result');
+  box.innerHTML = '';
+  if (!r || !r.sets || !r.sets.length){ box.innerHTML = '<p class="hint">还没有生成结果。</p>'; return; }
+  const allText = r.sets.map(s => '【' + s.label + '】\n短标题：' + s.title + '\n视频描述：' + s.desc).join('\n\n');
+  r.sets.forEach(s => {
+    const d = document.createElement('div');
+    d.className = 'mat-set';
+    const h = document.createElement('h3');
+    h.textContent = s.label;
+    const t = document.createElement('div');
+    t.className = 'mat-title'; t.textContent = '短标题：' + s.title;
+    const desc = document.createElement('div');
+    desc.className = 'mat-desc'; desc.textContent = s.desc;
+    const b = document.createElement('button');
+    b.textContent = '复制本套';
+    b.onclick = () => copyText('短标题：' + s.title + '\n视频描述：' + s.desc);
+    d.appendChild(h); d.appendChild(t); d.appendChild(desc); d.appendChild(b);
+    box.appendChild(d);
+  });
+  const ball = document.createElement('button');
+  ball.className = 'primary'; ball.textContent = '复制全部';
+  ball.onclick = () => copyText(allText);
+  box.appendChild(ball);
+}
+
+$('#mat-input').oninput = () => { save(LS_MAT_INPUT, $('#mat-input').value); updateMatCount(); };
+$('#btn-mat-clear').onclick = () => { $('#mat-input').value = ''; save(LS_MAT_INPUT, ''); updateMatCount(); };
+$('#btn-mat-gen').onclick = async () => {
+  const text = $('#mat-input').value.trim();
+  const btn = $('#btn-mat-gen');
+  const st = $('#mat-status');
+  if (!text){ st.textContent = '请先粘贴脚本内容'; st.className = 'cfg-test-result error'; return; }
+  btn.disabled = true; btn.textContent = '生成中…'; st.textContent = '正在调用模型生成三套发布物料…'; st.className = '';
+  try {
+    const r = await fetch('/api/materials', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ script: text }) });
+    let j = null;
+    try { j = await r.json(); } catch(e){ throw new Error('服务端返回非 JSON（HTTP ' + r.status + '）'); }
+    if (!r.ok) throw new Error(j.error || '生成失败（HTTP ' + r.status + '）');
+    if (!j.sets || j.sets.length !== 3) throw new Error('返回的三套物料不完整，请重试');
+    save(LS_MAT_RESULT, j);
+    renderMatResult(j);
+    st.textContent = '生成完成';
+  } catch(e){
+    st.textContent = '生成失败: ' + e.message; st.className = 'cfg-test-result error';
+  } finally {
+    btn.disabled = false; btn.textContent = '生成发布物料';
+  }
+};
+
 /* ---------- init ---------- */
+
 fillSpec();
 renderAll();

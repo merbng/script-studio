@@ -199,7 +199,10 @@ function parseScripts(content){
 }
 
 function normalizeCard(s, id){
+  const tl = Array.isArray(s.timeline) ? s.timeline.join('\n') : (s.timeline || '');
+  const all = [s.title, s.tone, s.scene, tl, s.light, s.vo].filter(Boolean).join('\n');
   return {
+    all,
     id: id || ('c' + Date.now() + Math.random().toString(36).slice(2, 6)),
     title: s.title || '',
     hot: s.hotSource || '',
@@ -262,6 +265,40 @@ async function generateAndValidate(rankedItems, count, extra){
   });
 
   return { scripts: final, count: final.length };
+}
+
+
+/* ---------- 发布物料 ---------- */
+const MATERIALS_PROMPT = `你是一名微信视频号发布运营，服务"中年男性技术宅 @金木"账号（中年男性技术宅，30岁左右，北方人，语气像吃过亏的老哥，实在不端着，不说教不鸡汤）。
+任务：只依据用户粘贴的完整脚本原文，产出三套「视频描述 + 短标题」成对备选（A/B/C）。
+要求：
+1. 只依据脚本内容，不额外改写脚本，不臆造脚本没有的具体事实。
+2. 三套风格有区分：A 反常识（打破常见认知）、B 共鸣（戳中日常痛点）、C 悬念提问（留一个想点开的问题）。
+3. 每套 desc：口语化有信息量、结尾一句引导互动；末尾用空格分隔话题标签 5-7 个：至少 1 个大词（如 #生活常识 #职场 #数码），2-3 个中词，2-3 个精准长尾（如 #隔夜菜能吃吗）。禁违规词、绝对化用语（最、第一、100%、包治、根治等）、禁硬广、禁外链与二维码。
+4. 每套 title：不超过 16 个汉字，有钩子带核心关键词，不重复本套 desc 首句，三套标题彼此不重复。
+5. 输出严格 JSON，不要多余文字，不要 markdown 代码块。形状：{"sets":[{"label":"A｜反常识","desc":"","title":""},{"label":"B｜共鸣","desc":"","title":""},{"label":"C｜悬念提问","desc":"","title":""}]}`;
+
+function parseJSONLoose(content){
+  let t = String(content || '').trim();
+  t = t.replace(/^```(?:json)?s*/i, '').replace(/```s*$/, '').trim();
+  const a = t.indexOf('{'), b = t.lastIndexOf('}');
+  if (a >= 0 && b > a) t = t.slice(a, b + 1);
+  try { return JSON.parse(t); } catch(e){ throw new Error('模型返回内容无法解析为 JSON'); }
+}
+
+async function generateMaterials(scriptText){
+  const content = await chat([
+    { role: 'system', content: MATERIALS_PROMPT },
+    { role: 'user', content: '脚本原文：\n' + scriptText + '\n\n请输出三套「视频描述 + 短标题」。' }
+  ], 0.8);
+  const obj = parseJSONLoose(content);
+  const sets = (obj.sets || obj.materials || []).slice(0, 3).map((s, i) => ({
+    label: s.label || ['A｜反常识','B｜共鸣','C｜悬念提问'][i],
+    desc: String(s.desc || s.description || ''),
+    title: String(s.title || '')
+  }));
+  if (sets.length !== 3 || sets.some(s => !s.desc || !s.title)) throw new Error('模型返回的三套物料不完整，请重试');
+  return { sets };
 }
 
 /* ---------- 模板 / 规则 / 历史 ---------- */
@@ -385,6 +422,14 @@ const server = http.createServer(async (req, res) => {
         recordTitles(titles);
         return json(res, 200, out);
       } catch(e){ return json(res, 500, { error: e.message }); }
+    }
+    if (p === '/api/materials' && req.method === 'POST'){
+      const body = await readBody(req);
+      const text = String(body.script || '').trim();
+      if (!text) return json(res, 400, { error: '请先粘贴脚本内容' });
+      if (text.length > 20000) return json(res, 400, { error: '脚本内容过长（上限 20000 字），请精简后再试' });
+      try { return json(res, 200, await generateMaterials(text)); }
+      catch(e){ return json(res, 500, { error: e.message }); }
     }
     if (p === '/api/validate' && req.method === 'POST'){
       const body = await readBody(req);

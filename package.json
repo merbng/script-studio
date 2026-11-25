@@ -1,6 +1,6 @@
 {
   "name": "script-studio",
-  "version": "1.0.5",
+  "version": "1.0.6",
   "description": "视频号脚本标准化生成器",
   "main": "server.js",
   "scripts": {
