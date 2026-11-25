@@ -153,13 +153,13 @@ const SYSTEM_PROMPT = `你是一名中文短视频（微信视频号）内容策
 
 输出 JSON 形状：{"scripts":[{"title":"","tone":"","scene":"","timeline":["","","",""],"vo":"","light":"","hotSource":"","mats":[{"desc":"","title":""},{"desc":"","title":""},{"desc":"","title":""}]}]}`;
 
-function buildUserPrompt(rankedItems, count, extra, usedTitles){
+function buildUserPrompt(rankedItems, count, extra, usedTitles, selectedTitles){
   const used = (usedTitles || []).length ? '\n已用过的短标题（禁止重复）：\n' + usedTitles.join('、') + '\n' : '';
   return `今天（${new Date().toISOString().slice(0, 10)}）的实时热榜候选话题（已跨平台合并、按人设贴合度排好序）：
 
-${topics.guide(rankedItems, count)}
+${topics.guide(rankedItems, count, selectedTitles)}
 ${used}
-请从【核心人设话题】里挑选 ${count} 个切入点（边缘话题只有能改造成技术宅/中年/北方视角才可用），生成 ${count} 条完整脚本。
+ ${selectedTitles && selectedTitles.length ? `优先从【★用户勾选】话题里挑选切入点（不足 ${count} 条时才从其余核心人设话题补足）` : `请从【核心人设话题】里挑选切入点（边缘话题只有能改造成技术宅/中年/北方视角才可用）`}，生成 ${count} 条完整脚本。
 ${extra ? '额外要求：' + extra + '\n' : ''}
 选题之间不要重复，同一话题不要用两次。每条脚本的 hotSource 写明它用的原始话题文字。`;
 }
@@ -218,14 +218,14 @@ function normalizeCard(s, id){
   };
 }
 
-async function generateAndValidate(rankedItems, count, extra){
+async function generateAndValidate(rankedItems, count, extra, selectedTitles){
   const rules = currentRules();
   const history = currentHistory();
   const usedTitles = history.slice(-rules.recent);
 
   const content = await chat([
     { role: 'system', content: SYSTEM_PROMPT },
-    { role: 'user', content: buildUserPrompt(rankedItems, count, extra, usedTitles) }
+    { role: 'user', content: buildUserPrompt(rankedItems, count, extra, usedTitles, selectedTitles) }
   ]);
   const cards = parseScripts(content).slice(0, count).map((s, i) => normalizeCard(s, 'c' + i));
 
@@ -416,7 +416,9 @@ const server = http.createServer(async (req, res) => {
       /* 人设分层排序 */
       items = persona.rank(items.map(it => ({ ...it })));
       try {
-        const out = await generateAndValidate(items, count, body.extra);
+        /* 用户明确勾选了话题时，标题列表传入生成链路：勾选话题绝对优先 */
+        const selectedTitles = (body.hotItems && body.hotItems.length) ? items.map(it => it.title) : [];
+        const out = await generateAndValidate(items, count, body.extra, selectedTitles);
         const titles = [];
         out.scripts.forEach(c => c.mats.forEach(m => { if (m.title) titles.push(m.title.trim()); }));
         recordTitles(titles);
